@@ -43,7 +43,7 @@ bogus-priv
 # 2) Sets the "domain" DHCP option thereby potentially setting the
 #    domain of all systems configured by DHCP
 # 3) Provides the domain part for "expand-hosts"
-domain=cluster.storagenet.local
+domain=sestest
 
 # Set this (and domain: see below) if you want to have a domain
 # automatically added to simple names in a hosts-file.
@@ -51,7 +51,7 @@ expand-hosts
 
 # Add local-only domains here, queries in these domains are answered
 # from /etc/hosts or DHCP only.
-local=/cluster.storagenet.local/
+local=/sestest/
 
 # If you want dnsmasq to listen for DHCP and DNS requests only on
 # specified interfaces (and the loopback) give the name of the
@@ -62,7 +62,7 @@ interface=eth0
 except-interface=eth1
 # Or which to listen on by address (remember to include 127.0.0.1 if
 # you use this.)
-listen-address=10.6.6.1
+listen-address=192.168.122.1
 # If you want dnsmasq to provide only DNS service on an interface,
 # configure it as shown above, and then use the following line to
 # disable DHCP and TFTP on it.
@@ -82,12 +82,12 @@ bind-interfaces
 # a lease time. If you have more than one network, you will need to
 # repeat this for each network on which you want to supply DHCP
 # service.
-dhcp-range=10.6.6.2,10.6.6.10,48h
-dhcp-range=lan,10.6.6.150, 10.6.6.200
+dhcp-range=192.168.122.10,192.168.122.20,48h
+dhcp-range=lan,192.168.122.100, 192.168.122.200
 
 # Override the default route supplied by dnsmasq, which assumes the
 # router is the same machine as the one running dnsmasq.
-dhcp-option=lan,3,10.6.6.1
+dhcp-option=lan,3,192.168.122.1
 
 # Add other name servers here, with domain specs if they are for
 # non-public domains.
@@ -101,9 +101,9 @@ no-hosts
 addn-hosts=/etc/dnsmasq_static_hosts.conf
 
 # set up router 
-dhcp-option=option:router,10.6.6.252
+dhcp-option=option:router,192.168.122.1
 # and ntp server for dhcp clients
-dhcp-option=option:ntp-server,10.6.6.1
+dhcp-option=option:ntp-server,192.168.122.1
 ```
 
 * next we need to configure DNS and use static IP for hosts that will be installed over PXE. 
@@ -111,17 +111,16 @@ dhcp-option=option:ntp-server,10.6.6.1
 - edit */etc/dnsmasq_static_hosts.conf* , example (same syntax as for /etc/hosts):
 
 ```bash
-10.6.6.4 ceph0002C952D4CE ceph0002C952D4CE.cluster.storagenet.local
-10.6.6.196 nfs-ha-2 nfs-ha-2.cluster.storagenet.local
+192.168.122.10 osd-node1.sestest osd-node1
+192.168.122.11 osd-node2.sestest osd-node2
 ```
 
 - edit */etc/dhcp_permanent_leases.conf*, example:
 
 ```bash
 # dhcp lease based on MAC
-dhcp-host=00:02:c9:53:b0:0c,ceph0002C953B00C,10.6.6.6,infinite
-dhcp-host=68:05:ca:2d:19:ac,ceph0002C953B2C8,10.6.6.7,infinite
-dhcp-host=00:02:c9:53:67:24,ceph0002C9536724,10.6.6.5,infinite
+dhcp-host=00:02:c9:53:b0:0c,osd-node1,192.168.122.10,infinite
+dhcp-host=68:05:ca:2d:19:ac,osd-node2,192.168.122.11,infinite
 ```
 
 - and we're going to use separate file for our pxe specific settings */etc/dnsmasq.d/pxe_settings.conf*
@@ -139,7 +138,7 @@ tftp-root=/srv/tftpboot
 dhcp-match=x86PC, option:client-arch, 0
 # if dnsmasq find out tag x86PC it will send this file to client to use 
 # it for the installation
-dhcp-boot=tag:x86PC,legacy/x86_64/pxelinux.0,10.6.6.1
+dhcp-boot=tag:x86PC,legacy/x86_64/pxelinux.0,192.168.122.1
 
 # EFI x86_64
 # if client sents its architecture specification to be UEFI x86_64
@@ -147,7 +146,7 @@ dhcp-boot=tag:x86PC,legacy/x86_64/pxelinux.0,10.6.6.1
 dhcp-match=BC_EFI, option:client-arch, 7
 # if dnsmasq find out tag BC_EFI it will send this file to client to use 
 # it for the installation
-dhcp-boot=tag:BC_EFI,EFI/shim-sles.efi,10.6.6.1
+dhcp-boot=tag:BC_EFI,EFI/shim-sles.efi,192.168.122.1
 ```
 
 * set up logrotate
@@ -214,10 +213,10 @@ label harddisk
 # install
 label install
   kernel linux
-  append initrd=initrd showopts install=http://10.6.6.1/provisioning/x86_64/sles12sp3/cd1 textmode=1 autoyast=http://10.6.6.1/autoyast/autoyast_sles12sp3_ses5.xml
-  #autoyast=http://10.6.6.1/autoyast/autoyast.xml
+  append initrd=initrd showopts install=http://192.168.122.1/provisioning/x86_64/sles12sp3/cd1 textmode=1 autoyast=http://192.168.122.1/autoyast/autoyast_sles12sp3_ses5.xml
+  #autoyast=http://192.168.122.1/autoyast/autoyast.xml
   #ssh=1 sshpassword=password console=ttyS0,115200
-  #autoyast=http://10.6.6.1/provisioning/autoyast/sles12sp3_ceph.xml
+  #autoyast=http://192.168.122.1/provisioning/autoyast/sles12sp3_ceph.xml
 
 display message
 implicit 0
@@ -275,8 +274,8 @@ cp -a /usr/lib/grub2/x86_64-efi/grub.efi ../
 ```bash
 set timeout=5
 menuentry 'Install SLES12 SP3 for x86_64' {
- linuxefi /EFI/linux install=http://10.6.6.1/provisioning/x86_64/sles12sp3/cd1 textmode=1 autoyast=http://10.6.6.1/autoyast/autoyast_uefi.xml
-# linuxefi /EFI/linux install=http://10.6.6.1/provisioning/x86_64/sles12sp3/cd1 textmode=1 ssh=1 sshpassword=sles
+ linuxefi /EFI/linux install=http://192.168.122.1/provisioning/x86_64/sles12sp3/cd1 textmode=1 autoyast=http://192.168.122.1/autoyast/autoyast_uefi.xml
+# linuxefi /EFI/linux install=http://192.168.122.1/provisioning/x86_64/sles12sp3/cd1 textmode=1 ssh=1 sshpassword=sles
  initrdefi /EFI/initrd
 }
 ```
@@ -313,12 +312,12 @@ do
 sleep 10
 done
 SUSEConnect -p ses/5/x86_64
-rpm --import http://admin-server.storagenet.local/autoyast/ses5_content.key
+rpm --import http://admin-server.sestest/autoyast/ses5_content.key
 zypper ref
 zypper up -ly
 zypper in -ly salt-minion
 systemctl enable salt-minion
-echo "master: admin-server.storagenet.local" > /etc/salt/minion.d/master.conf
+echo "master: admin-server.sestest" > /etc/salt/minion.d/master.conf
 systemctl start salt-minion
 exit 0]]></source>
       </script>
