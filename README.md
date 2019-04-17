@@ -104,6 +104,9 @@ addn-hosts=/etc/dnsmasq_static_hosts.conf
 dhcp-option=option:router,192.168.122.1
 # and ntp server for dhcp clients
 dhcp-option=option:ntp-server,192.168.122.1
+
+# Stop  the  TFTP  server  from  negotiating  the  "blocksize"  option with a client
+tftp-no-blocksize
 ```
 
 * next we need to configure DNS and use static IP for hosts that will be installed over PXE. 
